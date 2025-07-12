@@ -80,12 +80,48 @@ class Play {
 	}
 }
 
+// URL parameter utilities
+function getUrlParams() {
+	const hash = location.hash.substring(1);
+	return new URLSearchParams(hash);
+}
+
+function updateUrl(updater) {
+	const params = getUrlParams();
+	updater(params);
+	location.hash = '#' + params.toString();
+}
+
+// Apply URL state to application
+function applyUrlState(opts, showTabFunc) {
+	const params = getUrlParams();
+	
+	// Update opts from URL
+	opts.wpm = +(params.get('wpm')) || 20;
+	opts.tone = +(params.get('tone')) || 600;
+	
+	// Update inputs
+	const wpmInput = document.getElementById('wpm');
+	const toneInput = document.getElementById('tone');
+	if (wpmInput) wpmInput.value = opts.wpm;
+	if (toneInput) toneInput.value = opts.tone;
+	
+	// Update tab and text
+	const tab = params.get('tab') || 'chars';
+	showTabFunc(tab, true); // true = skip URL update
+	
+	const textInput = document.getElementById('text-input');
+	if (textInput) {
+		textInput.value = params.get('text') || '';
+	}
+}
+
 // Tab functionality
 function initTabs() {
 	const tabButtons = document.querySelectorAll('[role="tab"]');
 	const tabPanels = document.querySelectorAll('[role="tabpanel"]');
 
-	function showTab(targetId) {
+	function showTab(targetId, skipUrlUpdate = false) {
 		// Hide all panels
 		tabPanels.forEach(panel => {
 			panel.classList.remove('active');
@@ -108,6 +144,14 @@ function initTabs() {
 		const targetButton = document.getElementById(targetId + '-tab');
 		if (targetButton) {
 			targetButton.setAttribute('aria-selected', 'true');
+		}
+
+		// Update URL
+		if (!skipUrlUpdate) {
+			updateUrl(params => {
+				// タブを設定
+				params.set('tab', targetId);
+			});
 		}
 	}
 
@@ -150,26 +194,16 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Initialize tabs
 	const { showTab } = initTabs();
 
-
+	// Initialize opts with defaults
 	const opts = {
-		wpm: +localStorage['chars-wpm']   || 20,
-		tone : +localStorage['chars-tone'] || 600, 
-		word_spacing : 1,
+		wpm: 20,
+		tone: 600,
+		word_spacing: 1,
 		character_spacing: 1
 	};
 
-	// Handle URL parameters
-	const params = new URLSearchParams(location.hash.substring(1));
-	if (params.has('text')) {
-		showTab('text');
-		const textInput = document.getElementById('text-input');
-		if (textInput) {
-			textInput.value = params.get('text') || '';
-		}
-	}
-	if (params.has('wpm')) {
-		opts.wpm = +params.get('wpm') || 20;
-	}
+	// Apply URL state to initialize everything
+	applyUrlState(opts, showTab);
 
 	// Prevent options form submission
 	const optionsForm = document.querySelector('#options form');
@@ -194,7 +228,11 @@ document.addEventListener('DOMContentLoaded', function () {
 				const name = this.name;
 				const value = +this.value;
 				opts[name] = value;
-				localStorage['chars-' + name] = this.value;
+				
+				// Update URL with new wpm/tone values
+				updateUrl(params => {
+					params.set(name, value);
+				});
 			});
 		});
 	});
@@ -231,9 +269,9 @@ document.addEventListener('DOMContentLoaded', function () {
 					const text = textInput.value.replace(/\s+/g, ' ').trim();
 					if (text) {
 						play.play(text, opts);
-						const params = new URLSearchParams(location.hash.substring(1));
-						params.set('text', text);
-						location.hash = '#' + params.toString();
+						updateUrl(params => {
+							params.set('text', text);
+						});
 					} else {
 						textInput.focus();
 					}
@@ -245,4 +283,9 @@ document.addEventListener('DOMContentLoaded', function () {
 			return false;
 		});
 	}
+
+	// Handle browser navigation (back/forward)
+	window.addEventListener('hashchange', function() {
+		applyUrlState(opts, showTab);
+	});
 });
