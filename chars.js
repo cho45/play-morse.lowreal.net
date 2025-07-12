@@ -80,40 +80,95 @@ class Play {
 	}
 }
 
+// State management with Proxy
+function createState(initialState = {}) {
+	const state = {
+		wpm: 20,
+		tone: 600,
+		tab: 'chars',
+		text: '',
+		word_spacing: 1,
+		character_spacing: 1
+	};
+
+	const refs = {
+		wpm: document.getElementById('wpm'),
+		tone: document.getElementById('tone'),
+		text: document.getElementById('text-input')
+	};
+
+	// DOM updaters map
+	const updaters = {
+		wpm: (value) => {
+			if (refs.wpm && refs.wpm.value != value) {
+				refs.wpm.value = value;
+			}
+		},
+		tone: (value) => {
+			if (refs.tone && refs.tone.value != value) {
+				refs.tone.value = value;
+			}
+		},
+		tab: (value) => {
+			window.showTabFunction(value, true);
+		},
+		text: (value) => {
+			if (refs.text && refs.text.value !== value) {
+				refs.text.value = value;
+			}
+		}
+	};
+
+	function updateDOMFromState(prop, value) {
+		updaters[prop]?.(value);
+	}
+
+	function syncStateToURL() {
+		const params = getUrlParams();
+		params.set('tab', state.tab);
+		params.set('wpm', state.wpm);
+		params.set('tone', state.tone);
+		if (state.text.trim()) {
+			params.set('text', state.text);
+		} else {
+			params.delete('text');
+		}
+		location.hash = '#' + params.toString();
+	}
+
+	const proxy = new Proxy(state, {
+		set(target, prop, value) {
+			if (target[prop] !== value) {
+				target[prop] = value;
+				updateDOMFromState(prop, value);
+				syncStateToURL();
+			}
+			return true;
+		}
+	});
+
+	// Initialize with URL state (this will trigger DOM updates via Proxy)
+	Object.entries(initialState).forEach(([key, value]) => {
+		proxy[key] = value;
+	});
+
+	return proxy;
+}
+
 // URL parameter utilities
 function getUrlParams() {
 	const hash = location.hash.substring(1);
 	return new URLSearchParams(hash);
 }
 
-function updateUrl(updater) {
+function getStateFromURL() {
 	const params = getUrlParams();
-	updater(params);
-	location.hash = '#' + params.toString();
-}
-
-// Apply URL state to application
-function applyUrlState(opts, showTabFunc) {
-	const params = getUrlParams();
-	
-	// Update opts from URL
-	opts.wpm = +(params.get('wpm')) || 20;
-	opts.tone = +(params.get('tone')) || 600;
-	
-	// Update inputs
-	const wpmInput = document.getElementById('wpm');
-	const toneInput = document.getElementById('tone');
-	if (wpmInput) wpmInput.value = opts.wpm;
-	if (toneInput) toneInput.value = opts.tone;
-	
-	// Update tab and text
-	const tab = params.get('tab') || 'chars';
-	showTabFunc(tab, true); // true = skip URL update
-	
-	const textInput = document.getElementById('text-input');
-	if (textInput) {
-		textInput.value = params.get('text') || '';
-	}
+	return {
+		wpm: +(params.get('wpm')) || 20,
+		tone: +(params.get('tone')) || 600,
+		tab: params.get('tab') || 'chars',
+		text: params.get('text') || ''
+	};
 }
 
 // Tab functionality
@@ -121,7 +176,7 @@ function initTabs() {
 	const tabButtons = document.querySelectorAll('[role="tab"]');
 	const tabPanels = document.querySelectorAll('[role="tabpanel"]');
 
-	function showTab(targetId, skipUrlUpdate = false) {
+	function showTab(targetId) {
 		// Hide all panels
 		tabPanels.forEach(panel => {
 			panel.classList.remove('active');
@@ -146,13 +201,6 @@ function initTabs() {
 			targetButton.setAttribute('aria-selected', 'true');
 		}
 
-		// Update URL
-		if (!skipUrlUpdate) {
-			updateUrl(params => {
-				// タブを設定
-				params.set('tab', targetId);
-			});
-		}
 	}
 
 	// Add click handlers
@@ -193,17 +241,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	// Initialize tabs
 	const { showTab } = initTabs();
+	
+	// Make showTab available globally for Proxy
+	window.showTabFunction = showTab;
 
-	// Initialize opts with defaults
-	const opts = {
-		wpm: 20,
-		tone: 600,
-		word_spacing: 1,
-		character_spacing: 1
-	};
+	// Initialize state from URL
+	const state = createState(getStateFromURL());
 
-	// Apply URL state to initialize everything
-	applyUrlState(opts, showTab);
+	// Add tab click handlers to update state
+	const tabButtons = document.querySelectorAll('[role="tab"]');
+	tabButtons.forEach(button => {
+		button.addEventListener('click', () => {
+			const targetId = button.getAttribute('aria-controls');
+			if (targetId) {
+				state.tab = targetId; // Proxy will handle DOM/URL updates
+			}
+		});
+	});
+
+	// Add text input change handler to update state
+	const textInput = document.getElementById('text-input');
+	['input', 'change'].forEach(eventType => {
+		textInput.addEventListener(eventType, function() {
+			state.text = this.value;
+		});
+	});
+
 
 	// Prevent options form submission
 	const optionsForm = document.querySelector('#options form');
@@ -217,22 +280,12 @@ document.addEventListener('DOMContentLoaded', function () {
 	// Handle options inputs
 	const optionInputs = document.querySelectorAll('#options input');
 	optionInputs.forEach(input => {
-		// Set initial values
-		if (opts[input.name] !== undefined) {
-			input.value = opts[input.name];
-		}
-
 		// Add event listeners
 		['keyup', 'change'].forEach(eventType => {
 			input.addEventListener(eventType, function () {
 				const name = this.name;
 				const value = +this.value;
-				opts[name] = value;
-				
-				// Update URL with new wpm/tone values
-				updateUrl(params => {
-					params.set(name, value);
-				});
+				state[name] = value; // Proxy will handle DOM/URL updates
 			});
 		});
 	});
@@ -250,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function () {
 			}
 			const char = button.getAttribute('data-char');
 			if (char) {
-				play.play(char, opts);
+				play.play(char, state);
 			}
 		}
 	}
@@ -268,10 +321,8 @@ document.addEventListener('DOMContentLoaded', function () {
 				if (textInput) {
 					const text = textInput.value.replace(/\s+/g, ' ').trim();
 					if (text) {
-						play.play(text, opts);
-						updateUrl(params => {
-							params.set('text', text);
-						});
+						play.play(text, state);
+						state.text = text; // Proxy will handle URL update
 					} else {
 						textInput.focus();
 					}
@@ -286,6 +337,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	// Handle browser navigation (back/forward)
 	window.addEventListener('hashchange', function() {
-		applyUrlState(opts, showTab);
+		const urlState = getStateFromURL();
+		
+		// Update state from URL (this will trigger DOM updates via Proxy)
+		state.wpm = urlState.wpm;
+		state.tone = urlState.tone;
+		state.tab = urlState.tab;
+		state.text = urlState.text;
 	});
 });
