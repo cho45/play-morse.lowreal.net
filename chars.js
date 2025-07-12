@@ -362,10 +362,10 @@ document.addEventListener('DOMContentLoaded', function () {
 				const textInput = this.querySelector('#text-input');
 				if (textInput) {
 					let text = textInput.value.replace(/\s+/g, ' ').trim();
-					text = preprocessJapaneseText(text);
+					state.text = text; // Proxy will handle URL update
 					if (text) {
+						text = preprocessJapaneseText(text);
 						play.play(text, state);
-						state.text = text; // Proxy will handle URL update
 					} else {
 						textInput.focus();
 					}
