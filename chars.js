@@ -166,6 +166,29 @@ function createState(initialState = {}) {
 	return proxy;
 }
 
+// 日本語テキスト変換ユーティリティ
+function hiraganaToKatakana(text) {
+	return text.replace(/[\u3041-\u3096]/g, function(match) {
+		return String.fromCharCode(match.charCodeAt(0) + 0x60);
+	});
+}
+
+function separateDiacritics(text) {
+	return text.normalize('NFD').replace(/[\u3099\u309A]/g, function(match) {
+		return {
+			'\u3099': '゛', // 濁点
+			'\u309A': '゜'  // 半濁点
+		}[match];
+	});
+}
+
+function preprocessJapaneseText(text) {
+	let processed = hiraganaToKatakana(text);
+	processed = separateDiacritics(processed);
+	console.log(`Preprocessed Japanese text: ${processed}`);
+	return processed;
+}
+
 // URL parameter utilities
 function getUrlParams() {
 	const hash = location.hash.substring(1);
@@ -338,7 +361,8 @@ document.addEventListener('DOMContentLoaded', function () {
 			try {
 				const textInput = this.querySelector('#text-input');
 				if (textInput) {
-					const text = textInput.value.replace(/\s+/g, ' ').trim();
+					let text = textInput.value.replace(/\s+/g, ' ').trim();
+					text = preprocessJapaneseText(text);
 					if (text) {
 						play.play(text, state);
 						state.text = text; // Proxy will handle URL update
