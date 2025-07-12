@@ -531,6 +531,17 @@
 								<% } %>
 							</div>
 						</section>
+						<section aria-labelledby="japanese-heading">
+							<header class="section-header">
+								<h2 id="japanese-heading"><label>Japanese (和文) <span style="font-size: 70%"><input type="checkbox" id="toggle-japanese" checked> 表示</span></label></h2>
+							</header>
+							<div class="chars-grid" id="japanese-chars">
+								<% var chars = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤヰユヱヨラリルレロワヲン゛゜ー"; %>
+								<% for (var i = 0, len = chars.length; i < len; i++) { %>
+									<% include('col', { char : chars.charAt(i) } ) %>
+								<% } %>
+							</div>
+						</section>
 					</div>
 					<div role="tabpanel" aria-labelledby="text-tab" id="text" class="tab-panel hidden">
 						<section aria-labelledby="text-heading">
