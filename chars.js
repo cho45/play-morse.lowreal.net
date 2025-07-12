@@ -1,47 +1,38 @@
-window.AudioContext = (
-	window.AudioContext ||
-	window.webkitAudioContext ||
-	window.mozAudioContext ||
-	window.msAudioContext
-);
 
+class Play {
+	constructor() {
+	}
 
-Play = function () { this.init.apply(this, arguments) };
-Play.prototype = {
-	init : function () {
-		var self = this;
-		self.context = new AudioContext();
-	},
-
-	play : function (code, config) {
-		var self = this;
-		var source = self.context.createBufferSource();
-		source.buffer = self.createToneBuffer(code, config);
-		source.connect(self.context.destination);
+	play(code, config) {
+		if (!this.context) {
+			this.context = new AudioContext();
+		}
+		const source = this.context.createBufferSource();
+		source.buffer = this.createToneBuffer(code, config);
+		source.connect(this.context.destination);
 		source.start(0);
-	},
+	}
 
-	createToneBuffer : function (code, config) {
-		var self = this;
-
-		var speed = 
+	createToneBuffer(code, config) {
+		const speed = 
 			config.cpm ? 6000 / config.cpm:
 			config.wpm ? 1200 / config.wpm:
 				50;
-		var unit = self.context.sampleRate * (speed / 1000);
-		var tone = self.context.sampleRate / (2 * Math.PI * config.tone);
+		const unit = this.context.sampleRate * (speed / 1000);
+		const tone = this.context.sampleRate / (2 * Math.PI * config.tone);
 
-		var sequence = [], length = 0;
-		for (var i = 0, n, len = code.length; i < len; i++) {
-			var c = code.charAt(i).toUpperCase();
-			if (c == ' ') {
+		const sequence = [];
+		let length = 0;
+		for (let i = 0, n, len = code.length; i < len; i++) {
+			const c = code.charAt(i).toUpperCase();
+			if (c === ' ') {
 				n = 7 * config.word_spacing * unit;
 				length += n;
 				sequence.push(-n);
 			} else {
-				var m = Morse.codes[c];
-				for (var j = 0, mlen = m.length; j < mlen; j++) {
-					var mc = m.charAt(j);
+				const m = Morse.codes[c];
+				for (let j = 0, mlen = m.length; j < mlen; j++) {
+					const mc = m.charAt(j);
 					if (mc === '.') {
 						n = 1 * unit;
 						length += n;
@@ -65,21 +56,21 @@ Play.prototype = {
 		}
 		length = Math.ceil(length);
 
-		var buffer = self.context.createBuffer(1, Math.ceil(length), self.context.sampleRate);
-		var data   = buffer.getChannelData(0);
+		const buffer = this.context.createBuffer(1, Math.ceil(length), this.context.sampleRate);
+		const data = buffer.getChannelData(0);
 
-		for (var i = 0, x = 0, len = sequence.length; i < len; i++) {
-			var s = sequence[i];
+		for (let i = 0, x = 0, len = sequence.length; i < len; i++) {
+			let s = sequence[i];
 			if (s < 0) {
 				while (s++ < 0) {
 					data[x++] = 0;
 				}
 			} else {
-				for (var p = 0; p < s; p++) {
+				for (let p = 0; p < s; p++) {
 					data[x++] = Math.sin(p / tone);
 				}
 				// remove ticking (fade)
-				for (var f = 0, e = self.context.sampleRate * 0.004; f < e; f++) {
+				for (let f = 0, e = this.context.sampleRate * 0.004; f < e; f++) {
 					data[x - f] = data[x - f] * (f / e); 
 				}
 			}
@@ -87,62 +78,171 @@ Play.prototype = {
 
 		return buffer;
 	}
-};
+}
 
-$(function () {
+// Tab functionality
+function initTabs() {
+	const tabButtons = document.querySelectorAll('[role="tab"]');
+	const tabPanels = document.querySelectorAll('[role="tabpanel"]');
+
+	function showTab(targetId) {
+		// Hide all panels
+		tabPanels.forEach(panel => {
+			panel.classList.remove('active');
+			panel.classList.add('hidden');
+		});
+
+		// Update all buttons
+		tabButtons.forEach(button => {
+			button.setAttribute('aria-selected', 'false');
+		});
+
+		// Show target panel
+		const targetPanel = document.getElementById(targetId);
+		if (targetPanel) {
+			targetPanel.classList.add('active');
+			targetPanel.classList.remove('hidden');
+		}
+
+		// Update target button
+		const targetButton = document.getElementById(targetId + '-tab');
+		if (targetButton) {
+			targetButton.setAttribute('aria-selected', 'true');
+		}
+	}
+
+	// Add click handlers
+	tabButtons.forEach(button => {
+		button.addEventListener('click', (e) => {
+			e.preventDefault();
+			const targetId = button.getAttribute('aria-controls');
+			if (targetId) {
+				showTab(targetId);
+			}
+		});
+
+	});
+
+	return { showTab };
+}
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
 	if (typeof AudioContext === 'undefined') {
-		$($('noscript').text()).replaceAll('noscript');
+		const noscriptContent = document.querySelector('noscript');
+		if (noscriptContent) {
+			const div = document.createElement('div');
+			div.innerHTML = noscriptContent.textContent;
+			noscriptContent.replaceWith(div);
+		}
 		return;
 	}
 
-	$(extended('main', {})).replaceAll('#main');
+	// Render main template
+	const mainTemplate = document.getElementById('main');
+	if (mainTemplate) {
+		const mainContent = extended('main', {});
+		mainTemplate.outerHTML = mainContent;
+	}
 
-	var opts = {
-		wpm : +localStorage['chars-wpm']   || 20,
+
+	// Initialize tabs
+	const { showTab } = initTabs();
+
+
+	const opts = {
+		wpm: +localStorage['chars-wpm']   || 20,
 		tone : +localStorage['chars-tone'] || 600, 
 		word_spacing : 1,
 		character_spacing: 1
 	};
 
+	// Handle URL parameters
 	const params = new URLSearchParams(location.hash.substring(1));
 	if (params.has('text')) {
-		$('#global-tabs a[href="#text"]').tab('show')
-		$('#play-text textarea').val(params.get('text') || '');
+		showTab('text');
+		const textInput = document.getElementById('text-input');
+		if (textInput) {
+			textInput.value = params.get('text') || '';
+		}
 	}
 	if (params.has('wpm')) {
 		opts.wpm = +params.get('wpm') || 20;
 	}
 
-	$('#options form').submit(function () {
-		return false;
+	// Prevent options form submission
+	const optionsForm = document.querySelector('#options form');
+	if (optionsForm) {
+		optionsForm.addEventListener('submit', function (e) {
+			e.preventDefault();
+			return false;
+		});
+	}
+
+	// Handle options inputs
+	const optionInputs = document.querySelectorAll('#options input');
+	optionInputs.forEach(input => {
+		// Set initial values
+		if (opts[input.name] !== undefined) {
+			input.value = opts[input.name];
+		}
+
+		// Add event listeners
+		['keyup', 'change'].forEach(eventType => {
+			input.addEventListener(eventType, function () {
+				const name = this.name;
+				const value = +this.value;
+				opts[name] = value;
+				localStorage['chars-' + name] = this.value;
+			});
+		});
 	});
 
-	$('#options input').on('keyup change', function () {
-		var $this = $(this);
-		var name = $this.attr('name');
-		opts[name] = +$this.val();
-		localStorage['chars-' + name] = $this.val();
-	}).each(function () {
-		this.value = opts[this.name];
-	});
+	const play = new Play();
 
-	var play = new Play();
-
-	$('button[data-char]').click(function () {
-		play.play($(this).attr('data-char'), opts);
-	});
-
-
-	$('#play-text').submit(function () {
-		try {
-			var text = $(this).find('textarea').val().replace(/\s+/g, ' ');
-			if (text) {
-				play.play(text, opts);
-				const params = new URLSearchParams(location.hash.substring(1));
-				params.set('text', text);
-				location.hash = '#' + params.toString();
+	function handleCharacterButtonEvent(e) {
+		const button = e.target.matches('button[data-char]') ? e.target : e.target.closest('button[data-char]');
+		if (button) {
+			if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') {
+				return;
 			}
-		} catch (e) { alert(e) }
-		return false;
-	});
+			if (e.type === 'keydown') {
+				e.preventDefault();
+			}
+			const char = button.getAttribute('data-char');
+			if (char) {
+				play.play(char, opts);
+			}
+		}
+	}
+
+	document.addEventListener('click', handleCharacterButtonEvent);
+	document.addEventListener('keydown', handleCharacterButtonEvent);
+
+	// Handle text form submission
+	const playTextForm = document.getElementById('play-text');
+	if (playTextForm) {
+		playTextForm.addEventListener('submit', function (e) {
+			e.preventDefault();
+			try {
+				const textInput = this.querySelector('#text-input');
+				if (textInput) {
+					const text = textInput.value.replace(/\s+/g, ' ').trim();
+					if (text) {
+						play.play(text, opts);
+						const params = new URLSearchParams(location.hash.substring(1));
+						params.set('text', text);
+						location.hash = '#' + params.toString();
+					} else {
+						textInput.focus();
+					}
+				}
+			} catch (error) { 
+				const errorMessage = `Error playing Morse code: ${error.message}`;
+				alert(errorMessage);
+			}
+			return false;
+		});
+	}
 });
