@@ -88,13 +88,16 @@ function createState(initialState = {}) {
 		tab: 'chars',
 		text: '',
 		word_spacing: 1,
-		character_spacing: 1
+		character_spacing: 1,
+		japanese_visible: navigator.languages.some(lang => lang === 'ja' || lang.startsWith('ja-'))
 	};
 
 	const refs = {
 		wpm: document.getElementById('wpm'),
 		tone: document.getElementById('tone'),
-		text: document.getElementById('text-input')
+		text: document.getElementById('text-input'),
+		japanese_toggle: document.getElementById('toggle-japanese'),
+		japanese_chars: document.getElementById('japanese-chars')
 	};
 
 	// DOM updaters map
@@ -115,6 +118,14 @@ function createState(initialState = {}) {
 		text: (value) => {
 			if (refs.text && refs.text.value !== value) {
 				refs.text.value = value;
+			}
+		},
+		japanese_visible: (value) => {
+			if (refs.japanese_toggle && refs.japanese_toggle.checked !== value) {
+				refs.japanese_toggle.checked = value;
+			}
+			if (refs.japanese_chars) {
+				refs.japanese_chars.style.display = value ? 'grid' : 'none';
 			}
 		}
 	};
@@ -266,6 +277,14 @@ document.addEventListener('DOMContentLoaded', function () {
 			state.text = this.value;
 		});
 	});
+
+	// Add Japanese toggle handler to update state
+	const japaneseToggle = document.getElementById('toggle-japanese');
+	if (japaneseToggle) {
+		japaneseToggle.addEventListener('change', function() {
+			state.japanese_visible = this.checked;
+		});
+	}
 
 
 	// Prevent options form submission
