@@ -5,6 +5,9 @@
 		<meta charset="utf-8"/>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Display:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 		<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
 
 		<script type="text/javascript" src="lib/micro-template.js"></script>
@@ -20,7 +23,11 @@
 			body {
 				margin: 0;
 				padding: 16px;
-				font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+				font-family: "Noto Sans Display", sans-serif;
+				font-optical-sizing: auto;
+				font-weight: 400;
+				font-style: normal;
+				font-variation-settings: "wdth" 100;
 				line-height: 1.6;
 				color: #333;
 				background-color: #fafafa;
@@ -362,6 +369,8 @@
 
 			/* Morse prosigns */
 			.morse-prosign {
+				font-size: 1.2rem;
+				font-weight: bold;
 				text-decoration: overline;
 				font-variant: small-caps;
 				text-transform: lowercase;
