@@ -153,6 +153,14 @@
 				margin-bottom: 32px;
 			}
 
+			/* Japanese character grid with responsive column layout */
+			.chars-grid-japanese {
+				display: grid;
+				grid-template-columns: repeat(10, 1fr);
+				gap: 16px;
+				margin-bottom: 32px;
+			}
+
 			/* Character cards */
 			.char-card {
 				display: flex;
@@ -408,6 +416,13 @@
 			}
 
 			/* Responsive design */
+			@media (max-width: 1000px) {
+				.chars-grid-japanese {
+					grid-template-columns: repeat(5, 1fr);
+					gap: 12px;
+				}
+			}
+
 			@media (max-width: 768px) {
 				.chars-grid {
 					grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
@@ -447,6 +462,10 @@
 			@media (max-width: 480px) {
 				.chars-grid {
 					grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+					gap: 8px;
+				}
+
+				.chars-grid-japanese {
 					gap: 8px;
 				}
 
@@ -535,7 +554,7 @@
 							<header class="section-header">
 								<h2 id="japanese-heading"><label>Japanese (和文) <span style="font-size: 70%"><input type="checkbox" id="toggle-japanese" checked> 表示</span></label></h2>
 							</header>
-							<div class="chars-grid" id="japanese-chars">
+							<div class="chars-grid-japanese" id="japanese-chars">
 								<% var chars = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤヰユヱヨラリルレロワヲン゛゜ー"; %>
 								<% for (var i = 0, len = chars.length; i < len; i++) { %>
 									<% include('col', { char : chars.charAt(i) } ) %>
